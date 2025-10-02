@@ -1,0 +1,109 @@
+\documentclass{article}
+\input{packages.tex}
+
+\begin{document}
+\input{title.tex}
+
+\makeatletter
+\renewcommand{\tableofcontents}{
+  \clearpage
+  \thispagestyle{empty}
+  \begin{center}
+          \bfseries\Large\MakeUppercase{Зміст}
+  \end{center}
+  
+  \addvspace{42pt}
+  \@starttoc{toc}
+}
+\renewcommand{\@pnumwidth}{2em}
+\renewcommand{\@tocrmarg}{3em}
+\makeatother
+
+\cleardoublepage
+\pagenumbering{arabic}
+\setcounter{page}{1}
+\newpage
+
+% Clear the header and footer
+\fancyhead{}
+\fancyfoot{}
+% Set the right side of the footer to be the page number
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+\fancyfoot[C]{
+  \begin{textblock*}{2cm}(20cm,27.3cm) % bottom right corner of A4
+    \small\thepage
+  \end{textblock*}
+}
+\pagestyle{fancy}
+
+\newtheorem*{remark}{Зауваження:}
+
+\input{mainreport.tex}
+
+\begin{thebibliography}{99}
+
+    \bibitem{gmp}
+    Granlund, T., and the GMP development team.
+    \textit{GNU MP: The GNU Multiple Precision Arithmetic Library}.
+    Edition 6.3.0, 2023.
+    \url{https://gmplib.org/}
+
+    \bibitem{knuth}
+    Knuth, D. E.
+    \textit{The Art of Computer Programming, Volume 2: Seminumerical Algorithms}.
+    3rd edition, Addison-Wesley, 1997.
+
+    \bibitem{karatsuba}
+    Karatsuba, A., and Ofman, Y.
+    ``Multiplication of Multidigit Numbers on Automata.''
+    \textit{Soviet Physics Doklady}, Vol. 7, 1963, pp. 595-596.
+
+    \bibitem{toom}
+    Toom, A. L.
+    ``The Complexity of a Scheme of Functional Elements Realizing the Multiplication of Integers.''
+    \textit{Soviet Mathematics Doklady}, Vol. 3, 1963, pp. 714-716.
+
+    \bibitem{schonhage}
+    Schönhage, A., and Strassen, V.
+    ``Schnelle Multiplikation großer Zahlen.''
+    \textit{Computing}, Vol. 7, 1971, pp. 281-292.
+
+    \bibitem{millerrabin}
+    Miller, G. L.
+    ``Riemann's Hypothesis and Tests for Primality.''
+    \textit{Journal of Computer and System Sciences}, Vol. 13, 1976, pp. 300-317.
+
+    \bibitem{rabin}
+    Rabin, M. O.
+    ``Probabilistic Algorithm for Testing Primality.''
+    \textit{Journal of Number Theory}, Vol. 12, 1980, pp. 128-138.
+
+    \bibitem{montgomery}
+    Montgomery, P. L.
+    ``Modular Multiplication Without Trial Division.''
+    \textit{Mathematics of Computation}, Vol. 44, 1985, pp. 519-521.
+
+    \bibitem{euclid}
+    Knuth, D. E.
+    ``Analysis of Euclid's Algorithm.''
+    \textit{The Art of Computer Programming, Volume 2}, Section 4.5.3, 1997.
+
+    \bibitem{parallel}
+    Brent, R. P., and Zimmermann, P.
+    \textit{Modern Computer Arithmetic}.
+    Cambridge University Press, 2010.
+
+    \bibitem{cryptography}
+    Menezes, A. J., van Oorschot, P. C., and Vanstone, S. A.
+    \textit{Handbook of Applied Cryptography}.
+    CRC Press, 1996.
+
+    \bibitem{numa}
+    Lameter, C.
+    ``NUMA (Non-Uniform Memory Access): An Overview.''
+    \textit{ACM Queue}, Vol. 11, 2013.
+
+\end{thebibliography}
+
+\end{document}
