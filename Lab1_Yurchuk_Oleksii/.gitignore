@@ -316,5 +316,5 @@ TSWLatexianTemp*
 !*.tex
 
 # .cpp
-!lab1_Yurchuk.cpp
-CodeExample/
+CodeExample
+
