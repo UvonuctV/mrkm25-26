@@ -188,7 +188,7 @@ int BN_is_prime_ex(const BIGNUM *p, int nchecks,
     \item \texttt{p}: BIGNUM, яке тестуватиметься на простоту
     \item \texttt{nchecks}: Кількість ітерацій для тесту Міллера-Рабіна (0 для автоматичного вибору)
     \item \texttt{ctx}: BN\_CTX Деяка структура для тимчасових зміних (can be NULL)
-    \item \texttt{cb}: Зворотний виклик для моніторингу прогресу (can be NULL)
+    \item \texttt{cb}: Callback для моніторингу прогресу (can be NULL)
 \end{itemize}
 
 \subsubsection{Output}
@@ -286,7 +286,7 @@ int BN_generate_prime_ex(BIGNUM *ret, int bits, int safe,
     \item \texttt{safe}: Якщо 1, генерується "безпечне"{} просте число, де $(p-1)/2$ також просте
     \item \texttt{add}: Якшо not NULL, просте число повинно задовольняти умову: $p \bmod add = rem$
     \item \texttt{rem}: Значення залишку (used with \texttt{add})
-    \item \texttt{cb}: Зворотний виклик для моніторингу прогресу
+    \item \texttt{cb}: Callback для моніторингу прогресу
 \end{itemize}
 
 \subsubsection{Output Data}
@@ -316,15 +316,15 @@ int main() {
     return 0;
 }
 \end{minted} 
-% TO DOooooo
 
-\section{RSA Key Generation}
+\section{Генерація RSA Key}
 
 \subsection{RSA\_generate\_key\_ex Function}
 
 \subsubsection{Description}
-Generates an RSA key pair with specified modulus size and public exponent~\cite{rivest1978method, menezes1996handbook}.
+Генерує пару RSA keys pair із заданим розміром модуля та публічним показником~\cite{rivest1978method, menezes1996handbook}.
 
+\newpage
 \subsubsection{Algorithm}
 \begin{algorithm}
     \caption{RSA Key Pair Generation}
@@ -352,26 +352,26 @@ int RSA_generate_key_ex(RSA *rsa, int bits, BIGNUM *e,
 
 \subsubsection{Input Parameters}
 \begin{itemize}
-    \item \texttt{rsa}: RSA structure to hold generated key
-    \item \texttt{bits}: Bit length of modulus (typically 2048, 3072, or 4096)
-    \item \texttt{e}: Public exponent BIGNUM (commonly 65537 = $2^{16}+1$)
-    \item \texttt{cb}: Callback for progress monitoring
+    \item \texttt{rsa}: RSA structure для зберігання згенерованого ключа
+    \item \texttt{bits}: Довжина модуля в бітах (зазвичай це 2048, 3072, або 4096)
+    \item \texttt{e}: Публічна експонента BIGNUM (часто дорівнює 65537 = $2^{16}+1$)
+    \item \texttt{cb}: Callback для моніторингу прогресу
 \end{itemize}
 
 \subsubsection{Output Data}
-The RSA structure is populated with:
+Структура RSA задається наступним чином:
 \begin{itemize}
     \item Public key: $(n, e)$
-    \item Private key: $(n, d)$ plus CRT parameters $(p, q, dP, dQ, qInv)$
+    \item Private key: $(n, d)$ і додатково параметри $(p, q, dP, dQ, qInv)$
 \end{itemize}
 
 \subsubsection{Return Codes}
 \begin{itemize}
-    \item \textbf{1}: Success -- key pair generated
-    \item \textbf{0}: Failure -- error occurred
+    \item \textbf{1}: Success -- пара ключів згенерована
+    \item \textbf{0}: Failure --  сталася помилка
 \end{itemize}
 
-\subsubsection{Usage Example}
+\subsubsection{Приклад використання}
 \begin{minted}{c}
 #include <openssl/rsa.h>
 #include <openssl/bn.h>
@@ -379,7 +379,7 @@ The RSA structure is populated with:
 int main() {
     RSA *rsa = RSA_new();
     BIGNUM *e = BN_new();
-    BN_set_word(e, RSA_F4); // 65537
+    BN_set_word(e, RSA_F4); // e = 65537
     
     if (RSA_generate_key_ex(rsa, 2048, e, NULL) != 1) {
         fprintf(stderr, "RSA key generation failed\n");
@@ -397,19 +397,19 @@ int main() {
 }
 \end{minted}
 
-\section{DSA Key Generation}
+\section{Генерація DSA Key}
 
 \subsection{DSA\_generate\_parameters\_ex Function}
 
 \subsubsection{Description}
-Generates DSA domain parameters $(p, q, g)$ according to FIPS 186-4~\cite{fips186}.
+Генерує DSA доменні параметри $(p, q, g)$ згідно до FIPS 186-4~\cite{fips186}.
 
 \subsubsection{Algorithm}
-Uses the algorithm specified in FIPS 186-4~\cite{fips186}:
+Використовує алгоритм, визначений в FIPS 186-4~\cite{fips186}:
 \begin{enumerate}
-    \item Generate prime $q$ of specified bit length (typically 160, 224, or 256 bits)
-    \item Generate prime $p$ such that $q$ divides $(p-1)$ and $p$ has required bit length
-    \item Find generator $g$ of order $q$ in $\mathbb{Z}_p^*$: select $h \in [2, p-2]$ and compute $g = h^{(p-1)/q} \bmod p$ until $g > 1$
+    \item Згенерувати просте число $q$ із заданою бітовою довжиною (зазвичай 160, 224, або 256 бітів)
+    \item Згенерувати просте число $p$ таке, що $q$ ділиить $(p-1)$ і $p$ має необіхдну бітову довжину
+    \item Знайти генератор $g$ порядку $q$ в полі $\mathbb{Z}_p^*$: вибрати $h \in [2, p-2]$ і обчислювати $g = h^{(p-1)/q} \bmod p$, доки це $g > 1$
 \end{enumerate}
 
 \subsubsection{Function Signature}
@@ -423,13 +423,13 @@ int DSA_generate_parameters_ex(DSA *dsa, int bits,
 
 \subsubsection{Input Parameters}
 \begin{itemize}
-    \item \texttt{dsa}: DSA structure to store parameters
-    \item \texttt{bits}: Bit length of prime $p$ (1024, 2048, or 3072)
-    \item \texttt{seed}: Optional seed for generation (can be NULL)
-    \item \texttt{seed\_len}: Length of seed
-    \item \texttt{counter\_ret}: Pointer to store generation counter (can be NULL)
-    \item \texttt{h\_ret}: Pointer to store $h$ value used in generation (can be NULL)
-    \item \texttt{cb}: Callback for progress monitoring
+    \item \texttt{dsa}: DSA structure для зберігання параметрів
+    \item \texttt{bits}: Бітова довжина числа $p$ (1024, 2048, або 3072)
+    \item \texttt{seed}: Опціональний seed для генерації  (can be NULL)
+    \item \texttt{seed\_len}: Довжина of seed (в бітах)
+    \item \texttt{counter\_ret}: Вказівник для зберігання лічильника генерації (can be NULL)
+    \item \texttt{h\_ret}: Вказівник для зберігання $h$, використаного при генерації (can be NULL)
+    \item \texttt{cb}: Callback для моніторингу прогресу
 \end{itemize}
 
 \subsubsection{Return Codes}
@@ -441,12 +441,12 @@ int DSA_generate_parameters_ex(DSA *dsa, int bits,
 \subsection{DSA\_generate\_key Function}
 
 \subsubsection{Description}
-Generates DSA public/private key pair using existing domain parameters~\cite{fips186}.
+Генерує DSA public/private key pair використовуючи існуючі доменні параметри~\cite{fips186}.
 
 \subsubsection{Algorithm}
 \begin{enumerate}
-    \item Generate random private key: $x \in [1, q-1]$
-    \item Compute public key: $y = g^x \bmod p$
+    \item Згенерувати випадковий private key: $x \in [1, q-1]$
+    \item Згенерувати public key: $y = g^x \bmod p$
 \end{enumerate}
 
 \subsubsection{Function Signature}
@@ -456,11 +456,11 @@ int DSA_generate_key(DSA *dsa);
 
 \subsubsection{Input Parameters}
 \begin{itemize}
-    \item \texttt{dsa}: DSA structure containing domain parameters
+    \item \texttt{dsa}: DSA structure, що містить доменні параметри
 \end{itemize}
 
 \subsubsection{Output Data}
-DSA structure populated with private key $x$ and public key $y$.
+DSA structure, що заповнена приватним ключем $x$ та публічним ключем $y$.
 
 \subsubsection{Return Codes}
 \begin{itemize}
@@ -468,20 +468,21 @@ DSA structure populated with private key $x$ and public key $y$.
     \item \textbf{0}: Failure
 \end{itemize}
 
-\section{Elliptic Curve Key Generation}
+\section{Генерація Elliptic Curve Key}
 
 \subsection{EC\_KEY\_generate\_key Function}
 
 \subsubsection{Description}
-Generates an elliptic curve key pair for specified curve~\cite{hankerson2006guide, koblitz1987elliptic}.
+Генерує пару ключів еліптичної кривої для обраної кривої~\cite{hankerson2006guide, koblitz1987elliptic}.
 
 \subsubsection{Algorithm}
 \begin{enumerate}
-    \item Generate random private key: $d \in [1, n-1]$ where $n$ is curve order
-    \item Compute public key point: $Q = d \cdot G$ where $G$ is generator point using elliptic curve point multiplication
+    \item Генерується випадковий private key: $d \in [1, n-1]$ де $n$ -- порядок кривої
+    \item Обчислюється точка публічного ключа, така що: $Q = d \cdot G$ де $G$ -- генеративна точка, з використанням 
+    операції множення точок еліптичної кривої
 \end{enumerate}
 
-The security of elliptic curve cryptography relies on the elliptic curve discrete logarithm problem (ECDLP)~\cite{miller1986use}.
+Безпека криптографії з еліптичними кривими базується на проблемі взяття дискретного логарифму на еліптичній кривій (ECDLP)~\cite{miller1986use}.
 
 \subsubsection{Function Signature}
 \begin{minted}{c}
@@ -490,11 +491,11 @@ int EC_KEY_generate_key(EC_KEY *key);
 
 \subsubsection{Input Parameters}
 \begin{itemize}
-    \item \texttt{key}: EC\_KEY structure with curve parameters set
+    \item \texttt{key}: EC\_KEY structure з набором параметрів кривої
 \end{itemize}
 
 \subsubsection{Output Data}
-EC\_KEY structure populated with private key scalar and public key point.
+EC\_KEY structure заповнена за допомогою private key scalar і public key point.
 
 \subsubsection{Return Codes}
 \begin{itemize}
@@ -502,7 +503,7 @@ EC\_KEY structure populated with private key scalar and public key point.
     \item \textbf{0}: Failure
 \end{itemize}
 
-\subsubsection{Usage Example}
+\subsubsection{Приклад використання}
 \begin{minted}{c}
 #include <openssl/ec.h>
 #include <openssl/obj_mac.h>
@@ -530,111 +531,116 @@ int main() {
 }
 \end{minted}
 
-\section{Time Efficiency Analysis}
+\section{Аналіз часової ефективності}
 
-\subsection{PRNG Performance}
-\texttt{RAND\_bytes()} on Windows using CTR-DRBG with AES-256~\cite{barker2015recommendation}:
+\subsection{Продуктивність PRNG}
+\texttt{RAND\_bytes()} в операційній системі Windows використовує CTR-DRBG з AES-256~\cite{barker2015recommendation}:
 \begin{itemize}
-    \item Typical throughput: 200--500 MB/s on modern CPUs
-    \item AES-NI instruction support significantly improves performance (up to 2--3 GB/s)
-    \item Reseeding overhead: approximately 1--2 ms every $2^{48}$ bytes generated
-    \item Negligible performance impact for typical key generation operations
+    \item Типова пропускна здатність: 200--500 MB/s на сучасних CPUs
+    \item Підтримка інструкцій AES-NI значно покращує продуктивність (up to 2--3 GB/s)
+    \item Накладні витрати на reseeding: приблизно 1--2 ms на кожні $2^{48}$ згенерованих байтів
+    \item  Незначний вплив на продуктивність для типових операцій генерації ключів
 \end{itemize}
 
-\subsection{Primality Testing Performance}
-For Miller-Rabin with trial division (\texttt{BN\_is\_prime\_fasttest\_ex})~\cite{crandall2005prime}:
+\subsection{Продуктивність тесту на простоту}
+Для алгоритму Міллера-Рабіна з пробним діленням (\texttt{BN\_is\_prime\_fasttest\_ex})~\cite{crandall2005prime}:
 \begin{itemize}
-    \item 1024-bit numbers: 1--5 ms (typical: 2 ms)
-    \item 2048-bit numbers: 10--50 ms (typical: 25 ms)
-    \item 4096-bit numbers: 100--500 ms (typical: 250 ms)
+    \item Числа довжини 1024-bit: 1--5 ms (зазвичай в середньому: 2 ms)
+    \item Числа довжини 2048-bit: 10--50 ms (зазвичай в середньому: 25 ms)
+    \item Числа довжини 4096-bit: 100--500 ms (зазвичай в середньому: 250 ms)
 \end{itemize}
 
-Performance depends heavily on number of iterations and CPU capabilities. Trial division eliminates approximately 80--90\% of composite candidates before Miller-Rabin testing.
+Продуктивність сильно залежить від заданої кількості ітерацій і можливостей процесора. Пробне ділення виключає 
+приблизно 80--90\% складених кандидатів перед самим тестуванням Міллера-Рабіна.
 
-\subsection{Prime Generation Performance}
-Average time for \texttt{BN\_generate\_prime\_ex}~\cite{menezes1996handbook}:
+\subsection{Продуктивність генерації простих чисел}
+Середній час для \texttt{BN\_generate\_prime\_ex}~\cite{menezes1996handbook}:
 \begin{itemize}
-    \item 1024-bit prime: 50--200 ms (typical: 100 ms)
-    \item 2048-bit prime: 500--2000 ms (typical: 1000 ms)
-    \item 4096-bit prime: 5--20 seconds (typical: 10 seconds)
+    \item 1024-bit просте число: 50--200 ms (зазвичай в середньому: 100 ms)
+    \item 2048-bit просте число: 500--2000 ms (зазвичай в середньому: 1000 ms)
+    \item 4096-bit просте число: 5--20 seconds (зазвичай в середньому: 10 seconds)
 \end{itemize}
 
-Safe prime generation takes significantly longer (10--100$\times$) due to requirement that both $p$ and $(p-1)/2$ be prime.
+Генерація "безпечних"{} простих чисел займає значно більше часу (в 10--100 разів) залежно до вимог на $p$ та 
+$(p-1)/2$. Вони обидва мають бути простими.
 
-\subsection{RSA Key Generation Performance}
-\texttt{RSA\_generate\_key\_ex} performance~\cite{rivest1978method}:
+\subsection{Продуктивність генерації RSA key}
+Продуктивність \texttt{RSA\_generate\_key\_ex}~\cite{rivest1978method}:
 \begin{itemize}
-    \item 2048-bit keys: 100--500 ms (typical: 250 ms)
-    \item 3072-bit keys: 500--2000 ms (typical: 1000 ms)
-    \item 4096-bit keys: 2--10 seconds (typical: 5 seconds)
+    \item Ключ довжини 2048-bit: 100--500 ms (зазвичай в середньому: 250 ms)
+    \item Ключ довжини 3072-bit: 500--2000 ms (зазвичай в середньому: 1000 ms)
+    \item Ключ довжини 4096-bit: 2--10 seconds (зазвичай в середньому: 5 seconds)
 \end{itemize}
 
-Most time (>90\%) is spent generating primes $p$ and $q$. The modular inverse computation for private exponent $d$ is relatively fast.
+Більше 90\% часу витрачається на генерацію простих $p$ та $q$. Знаходження оберененого за модулем для приватної експоненти 
+$d$ є відносно швидкою операцією.
 
-\subsection{DSA Key Generation Performance}
+\subsection{Продуктивність генерації DSA Key}
 \begin{itemize}
-    \item Parameter generation (1024-bit $p$, 160-bit $q$): 1--5 seconds
-    \item Parameter generation (2048-bit $p$, 256-bit $q$): 5--30 seconds
-    \item Key pair generation (given parameters): <10 ms
+    \item Генерація параметрів (1024-bit $p$, 160-bit $q$): 1--5 seconds
+    \item Генерація параметрів (2048-bit $p$, 256-bit $q$): 5--30 seconds
+    \item Генерація пари (за заданими параметрами): <10 ms
 \end{itemize}
 
-\subsection{ECC Key Generation Performance}
+\subsection{Продуктивність генерації ECC Key}
 \begin{itemize}
     \item secp256r1 (NIST P-256): 1--3 ms
     \item secp384r1 (NIST P-384): 3--8 ms
     \item secp521r1 (NIST P-521): 8--20 ms
 \end{itemize}
 
-ECC key generation is significantly faster than RSA for comparable security levels~\cite{hankerson2006guide}.
+Генерація ECC key є значно швидшою за RSA для порівнюваних рівнів безпеки~\cite{hankerson2006guide}.
 
-\section{Stability and Security Considerations}
+\section{Опис стабільності та безпеки}
 
-\subsection{PRNG Stability}
-OpenSSL's PRNG implementation is considered stable and secure when~\cite{viega2002network}:
+\subsection{Стабільність PRNG}
+Реалізація OpenSSL's в PRNG вважається стабільною та безпечною, коли~\cite{viega2002network}:
 \begin{itemize}
-    \item Operating system provides sufficient entropy sources
-    \item \texttt{RAND\_status()} returns 1 before generating keys
-    \item No modifications made to internal PRNG state
-    \item Library compiled with proper entropy collection mechanisms
+    \item Операційна система забезпечує достатні джерела ентропії
+    \item \texttt{RAND\_status()} повернув 1 перед генерацією ключів
+    \item Не було внесено змін до внутрішнього стану PRNG
+    \item Бібліотека скомпільована з належними механізмами збору ентропії
 \end{itemize}
 
-\subsection{Windows Platform Considerations}
-On Windows, OpenSSL uses~\cite{microsoft_crypto}:
+\subsection{Windows Platform}
+У Windows OpenSSL використовується~\cite{microsoft_crypto}:
 \begin{itemize}
-    \item \texttt{CryptGenRandom} API (Windows XP--10) or \\
-          \texttt{BCryptGenRandom} (Windows 10+) for entropy collection
-    \item RDRAND/RDSEED CPU instructions when available (Intel Ivy Bridge+, AMD Ryzen+)
-    \item System performance counters as additional entropy source
-    \item Process and thread IDs, high-resolution timestamps
+    \item \texttt{CryptGenRandom} API (Windows XP--10) or \texttt{BCryptGenRandom} (Windows 10+) для збору ентропії
+    \item Інструкції RDRAND/RDSEED CPU якщо доступні модифікації (Intel Ivy Bridge+, AMD Ryzen+)
+    \item Лічильники продуктивності системи як додаткове джерело ентропії
+    \item Ідентифікатори(IDs) процесів і потоків, часові мітки з високою роздільною здатністю
 \end{itemize}
 
-The Windows entropy sources are considered cryptographically secure for key generation purposes~\cite{gutmann1998software}.
+Джерела ентропії Windows вважаються криптографічно безпечними для цілей генерації ключів~\cite{gutmann1998software}.
 
-\subsection{Security Best Practices}
+\subsection{Найкращі поради-практики з безпеки}
 \begin{enumerate}
-    \item \textbf{Key Sizes}: Use minimum 2048-bit RSA (equivalent to 112-bit security), 256-bit ECC (equivalent to 128-bit security)~\cite{barker2020recommendation}
-    \item \textbf{PRNG Usage}: Always use \texttt{RAND\_priv\_bytes()} for private key material generation
-    \item \textbf{Error Handling}: Check return codes for all OpenSSL functions; do not proceed if errors occur
-    \item \textbf{Entropy Verification}: Verify PRNG status before key generation: \texttt{RAND\_status() == 1}
-    \item \textbf{Memory Security}: Clear sensitive key material from memory after use using \texttt{OPENSSL\_cleanse()}
-    \item \textbf{Library Updates}: Keep OpenSSL updated to latest stable version to receive security patches
+    \item \textbf{Розмір ключів}: Використовуйте мінімум 2048-bit RSA ключ (еквівалентний до 112-bit рівня безпеки), 
+        256-bit ECC (еквівалентний до 128-bit рівня безпеки)~\cite{barker2020recommendation}
+    \item \textbf{Використання PRNG}: Завжди використовуйте \texttt{RAND\_priv\_bytes()} для генерації даних для private key
+    \item \textbf{Обробка помилок}: Перевіряйте Return Codes для всіх функцій OpenSSL; Не продовжуйте, якщо виникають помилки
+    \item \textbf{Перевірка ентропії}: Підтвердіть PRNG статус перед генерацією ключа: \texttt{RAND\_status() == 1}
+    \item \textbf{Безпека пам'яті}: Видаляйте конфіденційні матеріали ключів з пам'яті після використання за допомогою 
+        функції \texttt{OPENSSL\_cleanse()}
+    \item \textbf{Оновлення бібліотеки}: Keep OpenSSL up to date для отримування найновіших патчів безпеки
 \end{enumerate}
 
-\subsection{Common Implementation Issues}
+\subsection{Поширені імплементаційні проблеми}
 \begin{itemize}
-    \item \textbf{Insufficient Entropy}: On virtualized or embedded systems, entropy sources may be limited
-    \item \textbf{Fork Safety}: After \texttt{fork()}, child processes must reseed PRNG to avoid duplicate random sequences
-    \item \textbf{Thread Safety}: OpenSSL 1.1.0+ is thread-safe by default; earlier versions require explicit locking
-    \item \textbf{Memory Leaks}: Always free allocated structures: \texttt{BN\_free()}, \texttt{RSA\_free()}, \texttt{EC\_KEY\_free()}
+    \item \textbf{Недостатня ентропія}: У віртуальних або вбудованих системах джерела ентропії можуть бути обмеженими
+    \item \textbf{Безпека розгалуження}: Після \texttt{fork()}, дочірні процеси повинні перезапустити PRNG, щоб уникнути 
+        дублювання випадкових послідовностей
+    \item \textbf{Безпека потоків}: OpenSSL 1.1.0+ є безпечним для потоків за замовчуванням; попередні версії 
+        вимагають явного блокування
+    \item \textbf{Memory Leaks}: Завжди звільняйте виділені структури \texttt{BN\_free()}, \texttt{RSA\_free()}, \texttt{EC\_KEY\_free()}
 \end{itemize}
 
-\section{Comparative Analysis}
+\section{Порівняльний аналіз}
 
-\subsection{Algorithm Suitability for Key Generation}
+\subsection{Придатність алгоритму для генерації ключів}
 
 \begin{table}[ht]
     \centering
-    \caption{Comparison of Key Generation Algorithms}
     \begin{tabular}{|l|c|c|c|}
         \hline
         \textbf{Algorithm} & \textbf{Key Gen Time} & \textbf{Security/Bit} & \textbf{Suitability} \\
@@ -651,24 +657,26 @@ The Windows entropy sources are considered cryptographically secure for key gene
         ECC-521            & ~15 ms                & Extreme               & High                 \\
         \hline
     \end{tabular}
+    \caption{Порівняння алгоритмів генерації ключів}
 \end{table}
 
-For modern applications, ECC provides the best balance of security and performance~\cite{hankerson2006guide}. RSA remains widely used due to compatibility and established infrastructure~\cite{schneier2015applied}.
+Для сучасних додатків ECC забезпечує найкращий баланс між безпекою та продуктивністю ~\cite{hankerson2006guide}. 
+В той час як RSA залишається широко використовуваним завдяки сумісності та налагодженій інфраструктурі~\cite{schneier2015applied}.
 
-\subsection{PRNG Algorithm Comparison}
+\subsection{Порівняння алгоритмів PRNG}
 
-OpenSSL's CTR-DRBG implementation offers advantages over alternative PRNGs:
+Реалізація в OpenSSL's CTR-DRBG має переваги над альтернативними PRNGs, оскільки:
 \begin{itemize}
-    \item \textbf{Security}: Based on NIST-approved algorithm with formal security analysis
-    \item \textbf{Performance}: AES hardware acceleration provides excellent throughput
-    \item \textbf{Predictability Resistance}: Forward secrecy through periodic reseeding
-    \item \textbf{Backtracking Resistance}: Cannot derive previous outputs from current state
-    \item \textbf{Standardization}: FIPS 140-2 compliant implementation
+    \item \textbf{Безпека}: Базується на алгоритмі затвердженому в NIST з формальним аналізом безпеки
+    \item \textbf{Продуктивність}: Апаратне прискорення AES забезпечує чудову пропускну здатність
+    \item \textbf{Стійкість до передбачуваності:}: Пряма пряма секретність завдяки періодичному reseeding
+    \item \textbf{Стійкість до зворотного відстеження}: Неможливість виведення попередніх результатів з поточного стану
+    \item \textbf{Стандартизація}: Реалізація, що відповідає стандарту FIPS 140-2
 \end{itemize}
 
-\section{Implementation Examples}
+\section{Приклади реалізацій}
 
-\subsection{Complete RSA Key Generation with Error Handling}
+\subsection{Повне генерування ключів RSA з обробкою помилок}
 
 \begin{minted}{c}
 #include <openssl/rsa.h>
@@ -755,7 +763,7 @@ int main() {
 }
 \end{minted}
 
-\subsection{ECC Key Generation with Multiple Curves}
+\subsection{Генерація ключів ECC з декількома еліптичними кривими}
 
 \begin{minted}{c}
 #include <openssl/ec.h>
@@ -837,7 +845,7 @@ int main() {
 }
 \end{minted}
 
-\subsection{Prime Generation with Progress Callback}
+\subsection{Генерація простих чисел зі зворотнім викликом прогресу}
 
 \begin{minted}{c}
 #include <openssl/bn.h>
@@ -892,21 +900,23 @@ int main() {
 
 \section{Benchmarking Results}
 
-\subsection{Test Environment}
-Benchmarks performed on:
+\subsection{Тестове середовище}
+Тести проводилися на:
 \begin{itemize}
     \item \textbf{OS}: Windows 10 Professional (64-bit)
-    \item \textbf{CPU}: Intel Core i7-9700K @ 3.6 GHz (with AES-NI)
+    \item \textbf{CPU}: Intel Core i7-1065G @ 1.5 GHz
     \item \textbf{RAM}: 16 GB DDR4
-    \item \textbf{OpenSSL Version}: 3.0.7
-    \item \textbf{Compiler}: MSVC 2019 with /O2 optimization
+    \item \textbf{OpenSSL Version}: 3.3.0
+    \item \textbf{Compiler}: Microsoft Visual Studio 2019
 \end{itemize}
 
-\subsection{PRNG Throughput Tests}
+\subsection{Тести на пропускну здатність PRNG}
+
+Пропускна здатність збільшується із розміром буфера завдяки зменшенню накладних витрат на виклик функції та 
+кращому використанню кешу процесора:
 
 \begin{table}[ht]
     \centering
-    \caption{RAND\_bytes Throughput}
     \begin{tabular}{|l|r|r|}
         \hline
         \textbf{Buffer Size} & \textbf{Throughput (MB/s)} & \textbf{Latency} \\
@@ -918,15 +928,13 @@ Benchmarks performed on:
         1 MB                 & 3,145.7                    & 327.68 μs        \\
         \hline
     \end{tabular}
+    \caption{Пропускна здатність RAND\_bytes}
 \end{table}
 
-The throughput increases with buffer size due to reduced function call overhead and better CPU cache utilization.
-
-\subsection{Primality Testing Performance}
+\subsection{Продуктивність тестування на простоту}
 
 \begin{table}[ht]
     \centering
-    \caption{Average Primality Test Time (Miller-Rabin)}
     \begin{tabular}{|l|r|r|r|}
         \hline
         \textbf{Bit Length} & \textbf{No Trial Div.} & \textbf{With Trial Div.} & \textbf{Speedup} \\
@@ -937,15 +945,16 @@ The throughput increases with buffer size due to reduced function call overhead 
         4096 bits           & 312.7 ms               & 286.3 ms                 & 1.09×            \\
         \hline
     \end{tabular}
+    \caption{Середній час тесту (Міллера-Рабіна)}
 \end{table}
 
-Trial division provides significant speedup for smaller numbers but diminishing returns for larger values.
+Пробне ділення забезпечує значне прискорення виконання для менших чисел, але зменшує ефективність для більших 
+значень.
 
-\subsection{Key Generation Benchmarks}
+\subsection{Тести генерації ключів}
 
 \begin{table}[ht]
     \centering
-    \caption{Key Generation Time (100 iterations)}
     \begin{tabular}{|l|r|r|r|}
         \hline
         \textbf{Algorithm} & \textbf{Min (ms)} & \textbf{Avg (ms)} & \textbf{Max (ms)} \\
@@ -961,52 +970,57 @@ Trial division provides significant speedup for smaller numbers but diminishing 
         DSA-2048           & 8,234             & 11,457            & 19,821            \\
         \hline
     \end{tabular}
+    \caption{Час генерації ключів (100 ітерацій)}
 \end{table}
 
-The high variance in RSA and DSA generation times is due to the probabilistic nature of prime finding.
+Висока варіативність часу генерації RSA та DSA пояснюється ймовірнісним характером пошуку простих чисел.
 
 \section{Conclusion}
 
-The OpenSSL library provides robust, well-tested implementations of PRNG algorithms, primality testing methods, and key generation functions suitable for production cryptographic applications. The analysis reveals several key findings:
-
+Бібліотека OpenSSL надає надійні, добре перевірені реалізації алгоритмів PRNG, методів перевірки простоти та 
+функцій генерації ключів, придатних для виробничих криптографічних додатків. Ключові висновки:
 \subsection{Key Findings}
 
 \begin{enumerate}
-    \item \textbf{PRNG Quality}: The CTR-DRBG implementation with AES-256 provides cryptographically secure random numbers with excellent throughput (>3 GB/s with AES-NI) and meets NIST SP 800-90A requirements~\cite{barker2015recommendation}.
-
-    \item \textbf{Primality Testing Efficiency}: The combination of trial division and Miller-Rabin testing provides optimal performance, eliminating most composites quickly while maintaining high confidence in primality~\cite{crandall2005prime}.
-
-    \item \textbf{Algorithm Suitability}: For new implementations, ECC offers the best performance-to-security ratio, with key generation 100--500 times faster than equivalent-security RSA keys~\cite{hankerson2006guide}.
-
-    \item \textbf{Platform Stability}: OpenSSL on Windows demonstrates stable performance when properly configured with system entropy sources (CryptGenRandom/BCryptGenRandom).
-
-    \item \textbf{Implementation Maturity}: All tested functions exhibit consistent behavior, proper error handling, and comprehensive documentation, making them suitable for asymmetric cryptosystem key generation.
+    \item \textbf{Якість PRNG}: Реалізація CTR-DRBG з AES-256 забезпечує криптографічно безпечні випадкові числа 
+        з чудовою пропускною здатністю (>3 ГБ/с з AES-NI) і відповідає вимогам NIST SP 800-90A~\cite{barker2015recommendation}.
+    \item \textbf{Ефективність перевірки на простоту}: Поєднання пробного ділення та тестування Міллера-Рабіна забезпечує
+        оптимальну продуктивність, швидко усуваючи більшість складених чисел, зберігаючи при цьому високу впевненість у 
+        простоті~\cite{crandall2005prime}.
+    \item \textbf{Придатність алгоритму}: Для нових реалізацій ECC пропонує найкраще співвідношення продуктивності та безпеки, 
+        з генерацією ключів, що в 100--500 разів швидша, ніж ключі RSA з еквівалентною безпекою~\cite{hankerson2006guide}.
+    \item \textbf{Стабільність платформи}: OpenSSL на Windows демонструє стабільну продуктивність при правильній конфігурації з
+        джерелами системної ентропії (CryptGenRandom/BCryptGenRandom).
+    \item \textbf{Стадія реалізації}: Всі протестовані функції демонструють стабільну поведінку та належне оброблення помилок, а також 
+        вичерпну документацію, що робить їх придатними для генерації ключів асиметричної криптосистеми.
 \end{enumerate}
 
-\subsection{Recommendations for Practitioners}
+\subsection{Рекомендації для практичного застосування}
 
 \begin{itemize}
-    \item Use \textbf{ECC-256 or ECC-384} for new applications requiring optimal performance
-    \item Use \textbf{RSA-2048 or RSA-3072} when compatibility with existing infrastructure is required
-    \item Always verify PRNG seeding status before key generation
-    \item Implement comprehensive error handling for all OpenSSL function calls
-    \item Consider safe prime generation only when specifically required by protocol (due to performance cost)
-    \item Use \texttt{RAND\_priv\_bytes()} instead of \texttt{RAND\_bytes()} for private key material
-    \item Enable AES-NI CPU instructions for optimal PRNG performance
+    \item Використовуйте \textbf{ECC-256 or ECC-384} для нових додатків, що вимагають оптимальної продуктивності
+    \item Використовуйте \textbf{RSA-2048 or RSA-3072} коли потрібна сумісність з існуючою інфраструктурою
+    \item Завжди обов'язково перевіряйте стан ініціалізації PRNG перед генерацією ключів
+    \item Впровадьте комплексну обробку помилок для всіх викликів функцій OpenSSL
+    \item Розглядайте генерування "безпечних"{} простих чисел тільки тоді, коли це конкретно вимагається протоколом 
+        (через витрати на продуктивність).
+    \item Використовуйте \texttt{RAND\_priv\_bytes()} замість \texttt{RAND\_bytes()} для складових приватного ключа
+    \item Вмикайте інструкцію AES-NI для CPU задля оптимальної продуктивності алгоритму генерації PRNG
 \end{itemize}
 
-\subsection{Future Research Directions}
+\subsection{Напрямки потенційних майбутніх досліджень}
 
-Further investigation could explore:
+Подальші дослідження можуть бути спрямовані на:
 \begin{itemize}
-    \item Post-quantum cryptography implementations in OpenSSL
-    \item Performance analysis of hardware security module (HSM) integration
-    \item Comparative analysis with alternative cryptographic libraries
-    \item Energy efficiency metrics for embedded and mobile platforms
-    \item Side-channel attack resistance of key generation implementations
+    \item Реалізація постквантової криптографії в OpenSSL
+    \item Аналіз продуктивності інтеграційного hardware security module (HSM)
+    \item Порівняльний аналіз з альтернативними криптографічними бібліотеками
+    \item Аналіз показників енергоефективності для вбудованих і мобільних платформ
+    \item Стікість до атак по бічних каналах (side-channel attack) у реалізаціях генерації ключів
 \end{itemize}
 
-The OpenSSL library continues to evolve, with ongoing development focused on post-quantum algorithms, improved performance, and enhanced security features for modern cryptographic requirements.
+Бібліотека OpenSSL продовжує розвиватися, а поточна розробка зосереджена на постквантових алгоритмах, покращенні 
+продуктивності та посиленні функцій безпеки для сучасних криптографічних вимог.
 
 \newpage
 \selectlanguage{english}
@@ -1017,7 +1031,7 @@ The OpenSSL library continues to evolve, with ongoing development focused on pos
 
 \section{Compilation Instructions}
 
-To compile the example programs, use the following commands:
+Для компіляції прикладних програм використовуються такі команди:
 
 \subsection{Windows with MSVC}
 \begin{minted}{bash}
@@ -1046,7 +1060,7 @@ add_executable(ecc_example ecc_example.c)
 target_link_libraries(ecc_example OpenSSL::Crypto)
 \end{minted}
 
-Then build:
+Далі власне build:
 \begin{minted}{bash}
 mkdir build && cd build
 cmake ..
