@@ -1,0 +1,967 @@
+\section{Опис теми дослідження}
+
+\subsection{Вступ}
+Багатоточні арифметичні операції над великими числами є фундаментальними для численних обчислювальних областей, 
+включаючи криптографію, теорію чисел, систем комп'ютерної алгебри та розподілені обчислювальні додатки. Бібліотека 
+GNU Multiple Precision Arithmetic Library (GMP) надає високооптимізовані реалізації арифметичних операцій, що 
+перевищують вбудовану цілочисельну точність стандартних комп'ютерних архітектур.
+
+\subsection{Research Context}
+Моє дослідження впродовж лабораторної спрямовано на вивчення ефективності арифметичних операцій GMP при паралельних 
+обчислювальних середовищах, що характеризуються:
+\begin{itemize}
+    \item Наявністю декількох процесорів (можливо, багатоядерних)
+    \item 64-бітна архітектура
+    \item Об'єм пам'яті to 128 GB RAM
+    \item Сценарії застосування: сервери обробки транзакцій та обладнання постачальників хмарних послуг
+\end{itemize}
+
+\subsection{Значимість багаторозрядної арифметики}
+Сучасні криптографічні протоколи, такі як RSA, криптографія на еліптичних кривих (ECC) та постквантові криптографічні 
+алгоритми, вимагають арифметичних операцій над цілими числами з тисячами бітів. Стандартні 64-бітні типи цілих чисел 
+є недостатніми для цих застосувань, що вимагає використання спеціалізованих бібліотек, таких як GMP, що можуть 
+обробляти цілі числа з довільною точністю.
+
+\subsection{Загальний огляд бібліотеки GNU GMP}
+GMP -- це безкоштовна бібліотека для арифметики довільної точності, що працює з цілими числами зі знаком, раціональними 
+числами та числами з плаваючою крапкою. Основні функції якої це:
+\begin{itemize}
+    \item Відсутність практичних обмежень по точності (обмеження лише за доступною пам'яттю)
+    \item Високооптимізовані асемблерні реалізації для багатьох архітектур процесорів
+    \item Широкий набір функцій для арифметичних, теоретико-чисельних та бітових операцій
+    \item Добре зарекомендована бібілотека по продуктивності (одна з найшвидших бібліотек з багаторазовою точністю)
+\end{itemize}
+
+\subsection{Міркування про паралельні обчислення}
+Хоча GMP сама по собі не є розпаралеленою на рівні функцій, паралельні обчислювальні середовища можуть використовувати 
+GMP за допомогою:
+\begin{itemize}
+    \item Task-level parallelism: розподіл незалежних арифметичних операцій між декількома ядрами
+    \item Data parallelism: одночасне виконання однакових операцій над різними наборами даних
+    \item Pipeline parallelism: перекриття різних етапів складних обчислень
+\end{itemize}
+
+\subsection{Мета мого дослідження}
+Основними цілями цього дослідження є:
+\begin{enumerate}
+    \item Аналіз алгоритмічних основ основних арифметичних функцій GMP
+    \item Оцінка обчислювальної складності з точки зору часу та пам'яті
+    \item Оцінка характеристик продуктивності на 64-бітних багатоядерних архітектурах
+    \item Визначення можливостей оптимізації для сценаріїв паралельних обчислень
+    \item Надання практичних рекомендацій щодо впровадження GMP у високопродуктивних обчислювальних середовищах
+\end{enumerate}
+
+\newpage
+\section{Арифметичні функції з багаторозрядною точністю}
+
+\subsection{Integer Initialization and Assignment Functions}
+
+\subsubsection{mpz\_init}
+\textbf{Опис:} Ініціалізує цілочисельну змінну та встановлює її значення на 0.
+
+\textbf{Алгоритм:} Виділяє пам'ять для limb array (зазвичай спочатку один limb) та ініціалізує метадані.
+
+\begin{remark}
+    Лімб є основним будівельним блоком для представлення цілих чисел довільної точності в GMP. Його можна уявити як 
+    "цифру"{} в арифметиці з основою $2^{64}$. Так само, як десяткове число 12345 може бути представлене як масив 
+    цифр $[1, 2, 3, 4, 5]$, велике ціле число в GMP представлене як масив лімбів. \\
+    \textbf{Приклад:} 192-бітне ціле число потребує трьох лімбів (3 $\times$ 64 = 192 біти):
+    \begin{itemize}
+        \item limb 0: біти 0-63 (найменш значущі)
+        \item limb 1: біти 64-127
+        \item limb 2: біти 128-191 (найстарші)
+    \end{itemize}
+\end{remark}
+
+\begin{minted}{c}
+void mpz_init(mpz_t x);
+\end{minted}
+
+\textbf{Складність:} $O(1)$ time, $O(1)$ space
+
+\textbf{Вхід:} Неініціалізована змінна mpz\_t (передається за посиланням)
+
+\textbf{Вихід:} Ініціалізована змінна mpz\_t із значенням 0
+
+\textbf{Return Code:} void (no return value)
+
+\subsubsection{mpz\_set}
+\textbf{Опис:} Присвоює значення одного цілого числа іншому.
+
+\textbf{Алгоритм:} Копіює limbs з source в destination, перерозподіляючи їх у разі необхідності.
+
+\begin{minted}{c}
+void mpz_set(mpz_t rop, const mpz_t op);
+\end{minted}
+
+\textbf{Складність:} $O(n)$ time, where $n$ кількість limbs in op, $O(n)$ space
+
+\textbf{Вхід:}
+\begin{itemize}
+    \item rop: destination integer
+    \item op: source integer
+\end{itemize}
+
+\textbf{Вихід:} rop містить копію op
+
+\textbf{Return Code:} void (no return value)
+
+\subsection{Основні арифметичні операції}
+
+\subsubsection{mpz\_add}
+\textbf{Опис:} Обчислює суму двох цілих чисел: $rop = op1 + op2$
+
+\textbf{Алгоритм:} "Шкільне"{} додавання з перенесення carry. Для кожного limb position $i$:
+\newpage
+
+\begin{algorithm}
+    \caption{Multi-precision Addition}
+    \begin{algorithmic}[1]
+        \State carry $\gets$ 0
+        \For{$i = 0$ to $\max(n_{1}, n_{2})$}
+        \State sum $\gets$ op1[i] + op2[i] + carry
+        \State rop[i] $\gets$ sum mod $2^{64}$
+        \State carry $\gets$ sum div $2^{64}$
+        \EndFor
+        \If{carry $\neq$ 0}
+        \State rop[$\max(n_{1}, n_{2})$] $\gets$ carry
+        \EndIf
+    \end{algorithmic}
+\end{algorithm}
+
+\begin{minted}{c}
+void mpz_add(mpz_t rop, const mpz_t op1, const mpz_t op2);
+\end{minted}
+
+\textbf{Складність:} $O(n)$ time, where $n = \max(\text{size}(op1), \text{size}(op2))$, $O(n)$ space
+
+\textbf{Вхід:}
+\begin{itemize}
+    \item rop: змінна-результат цілого типу
+    \item op1: перший операнд
+    \item op2: другий операнд
+\end{itemize}
+
+\textbf{Вихід:} rop містить суму $op1 + op2$
+
+\textbf{Return Code:} void (no return value)
+
+\subsubsection{mpz\_sub}
+\textbf{Опис:} Обчислює різницю: $rop = op1 - op2$
+
+\textbf{Алгоритм:} Подібний до додавання, але з позичанням borrow. Також обробляє зміну знака.
+
+\begin{minted}{c}
+void mpz_sub(mpz_t rop, const mpz_t op1, const mpz_t op2);
+\end{minted}
+
+\textbf{Складність:} $O(n)$ time, $O(n)$ space
+
+\textbf{Вхід:} rop, op1, op2 (такий же як в mpz\_add)
+
+\textbf{Вихід:} rop містить op1 - op2
+
+\textbf{Return Code:} void (no return value)
+
+\subsubsection{mpz\_mul}
+\textbf{Опис:} Обчислює добуток: $rop = op1 \times op2$
+
+\textbf{Алгоритм:} GMP використовує кілька алгоритмів залежно від operand size:
+\begin{itemize}
+    \item \textbf{Basecase multiplication} (малі операнди): "щкільне"{} множення, алгоритм $O(n^{2})$
+    \item \textbf{Karatsuba algorithm} (середні операнди): підхід "розділяй і володарюй"{}
+    \item \textbf{Toom-Cook algorithm} (великі операнди): узагальнений алгоритм Карацуби
+    \item \textbf{FFT-based multiplication} (дуже великі операнди): використання швидкого перетворення Фур'є
+\end{itemize}
+
+\newpage 
+\begin{algorithm}
+    \caption{Karatsuba Multiplication}
+    \begin{algorithmic}[1]
+        \Function{Karatsuba}{$x, y, n$}
+        \If{$n \leq$ threshold}
+        \State \Return Basecase-Multiply($x, y$)
+        \EndIf
+        \State $m \gets \lceil n/2 \rceil$
+        \State Split $x = x_{1} \cdot 2^{m} + x_{0}$, $y = y_{1} \cdot 2^{m} + y_{0}$
+        \State $z_{0} \gets$ Karatsuba($x_{0}, y_{0}, m$)
+        \State $z_{2} \gets$ Karatsuba($x_{1}, y_{1}, n-m$)
+        \State $z_{1} \gets$ Karatsuba($x_{0}+x_{1}, y_{0}+y_{1}, m+1$) - $z_{0}$ - $z_{2}$
+        \State \Return $z_{2} \cdot 2^{2m} + z_{1} \cdot 2^{m} + z_{0}$
+        \EndFunction
+    \end{algorithmic}
+\end{algorithm}
+
+\begin{minted}{c}
+void mpz_mul(mpz_t rop, const mpz_t op1, const mpz_t op2);
+\end{minted}
+
+\textbf{Складність:}
+\begin{itemize}
+    \item Базовий випадок: $O(n^{2})$
+    \item Карацуба: $O(n^{\log_{2} 3}) \approx O(n^{1.585})$
+    \item Тоом-Кук: $O(n^{\log_3 5}) \approx O(n^{1.465})$
+    \item FFT: $O(n \log n \log \log n)$
+\end{itemize}
+
+\textbf{Space Complexity:} $O(n)$ where $n$ -- сума of operand sizes
+
+\textbf{Вхід:} rop, op1, op2
+
+\textbf{Вихід:} rop містить результат op1 $\times$ op2
+
+\textbf{Return Code:} void (no return value)
+
+\subsubsection{mpz\_div (mpz\_tdiv\_q)}
+\textbf{Опис:} Обчислення частки: $q = \lfloor n/d \rfloor$
+
+\textbf{Алгоритм:} GMP використовує кілька алгоритмів ділення:
+\begin{itemize}
+    \item \textbf{"Шкільне"{} ділення}: для малих дільників
+    \item \textbf{Ділення методом "розділяй і володарюй"{}}: на основі рекурсивних методів
+    \item \textbf{Редукція за Барретом}: для модулярної арифметики
+    \item \textbf{Точне ділення}: оптимізоване, коли лишок рівний нулю
+\end{itemize}
+
+\begin{minted}{c}
+void mpz_tdiv_q(mpz_t q, const mpz_t n, const mpz_t d);
+void mpz_tdiv_r(mpz_t r, const mpz_t n, const mpz_t d);
+void mpz_tdiv_qr(mpz_t q, mpz_t r, const mpz_t n, const mpz_t d);
+\end{minted}
+
+\textbf{Складність:} $O(n \cdot m)$ для "шкільного"{}, де $n$ -- dividend size та $m$ -- divisor size; 
+вдосконалені алгоритми досягають складності $O(M(n))$, де $M(n)$ -- час множення
+
+\textbf{Вхід:}
+\begin{itemize}
+    \item q: результат ділення
+    \item r: лишок (для варіанту qr)
+    \item n: ділене
+    \item d: дільник
+\end{itemize}
+
+\textbf{Вихід:} q містить quotient, r містить remainder
+
+\textbf{Return Code:} void (no return value)
+
+\subsection{Модулярні арифметичні операції}
+
+\subsubsection{mpz\_mod}
+\textbf{Опис:} Обчислює $r = n \mod d$ з невід'ємним результатом
+
+\begin{minted}{c}
+void mpz_mod(mpz_t r, const mpz_t n, const mpz_t d);
+\end{minted}
+
+\textbf{Алгоритм:} Виконує ділення і повертає лишок від ділення, коригуючи знак, якщо необхідно
+
+\textbf{Складність:} $O(n \cdot m)$ подібно до звичаного ділення
+
+\textbf{Вхід:} r (result), n (dividend), d (divisor)
+
+\textbf{Вихід:} r містить n mod d
+
+\textbf{Return Code:} void (no return value)
+
+\subsubsection{mpz\_powm}
+\textbf{Опис:} Модулярне піднесення до степеня: $rop = base^{exp} \mod mod$
+
+\textbf{Алгоритм:} Бінарне піднесення до степеня (square-and-multiply) з модулярною редукцією
+
+\begin{algorithm}
+    \caption{Modular Exponentiation}
+    \begin{algorithmic}[1]
+        \Function{ModPow}{base, exp, mod}
+        \State result $\gets$ 1
+        \State base $\gets$ base mod mod
+        \While{exp $> 0$}
+        \If{exp is odd}
+        \State result $\gets$ (result $\times$ base) mod mod
+        \EndIf
+        \State exp $\gets$ exp $\gg$ 1
+        \State base $\gets$ (base $\times$ base) mod mod
+        \EndWhile
+        \State \Return result
+        \EndFunction
+    \end{algorithmic}
+\end{algorithm}
+
+\begin{minted}{c}
+void mpz_powm(mpz_t rop, const mpz_t base, const mpz_t exp, 
+              const mpz_t mod);
+\end{minted}
+
+\textbf{Складність:} $O(k \cdot M(n))$, де $k$ -- бітова довжина експоненти та $M(n)$ -- складність операції множення
+
+\textbf{Вхід:} rop (result), base, exp (exponent), mod (modulus)
+
+\textbf{Вихід:} rop містить base$^{exp}$ за mod
+
+\textbf{Return Code:} void (no return value)
+
+\subsubsection{mpz\_invert}
+\textbf{Опис:} Обчислює обернене за операцією множення: $rop \cdot op \equiv 1 \pmod{mod}$
+
+\textbf{Алгоритм:} Розширений алгоритм Евкліда
+
+\begin{algorithm}
+    \caption{Extended Euclidean Algorithm}
+    \begin{algorithmic}[1]
+        \Function{ExtGCD}{a, b}
+        \If{$b = 0$}
+        \State \Return (a, 1, 0)
+        \EndIf
+        \State (g, x', y') $\gets$ ExtGCD(b, a mod b)
+        \State x $\gets$ y'
+        \State y $\gets$ x' - $\lfloor a/b \rfloor$ $\cdot$ y'
+        \State \Return (g, x, y)
+        \EndFunction
+    \end{algorithmic}
+\end{algorithm}
+
+\begin{minted}{c}
+int mpz_invert(mpz_t rop, const mpz_t op, const mpz_t mod);
+\end{minted}
+
+\textbf{Складність:} $O(n^{2})$, де $n$ -- size of modulus
+
+\textbf{Вхід:} rop (result), op (value to invert), mod (modulus)
+
+\textbf{Вихід:} rop містить обернене значення до op, якщо воно взагалі існує
+
+\textbf{Return Code:} Відмінне від нуля, якщо обернене існує, та 0 якщо не існує (gcd(op, mod) $\neq$ 1)
+
+\subsection{Числові теоретичні функції}
+
+\subsubsection{mpz\_gcd}
+\textbf{Опис:} Обчислює найбільший спільний дільник: $rop = \gcd(op1, op2)$
+
+\textbf{Алгоритм:} Бінарний GCD (алгоритм Стейна) or алгоритм Евкліда
+
+\begin{algorithm}
+    \caption{Euclidean Algorithm}
+    \begin{algorithmic}[1]
+        \Function{GCD}{a, b}
+        \While{$b \neq 0$}
+        \State temp $\gets$ b
+        \State b $\gets$ a mod b
+        \State a $\gets$ temp
+        \EndWhile
+        \State \Return a
+        \EndFunction
+    \end{algorithmic}
+\end{algorithm}
+
+\begin{minted}{c}
+void mpz_gcd(mpz_t rop, const mpz_t op1, const mpz_t op2);
+\end{minted}
+
+\textbf{Складність:} $O(n^{2})$ для алгоритму Евкліда, де $n$ -- довжина в бітах
+
+\textbf{Вхід:} rop (result), op1, op2
+
+\textbf{Вихід:} rop містить gcd(op1, op2)
+
+\textbf{Return Code:} void (no return value)
+
+\subsubsection{mpz\_probab\_prime\_p}
+\textbf{Опис:} Імовірнісний тест на простоту
+
+\textbf{Алгоритм:} Тест на простоту Міллера-Рабіна із заданою наперед кількістю раундів
+
+\begin{algorithm}
+    \caption{Miller-Rabin Primality Test}
+    \begin{algorithmic}[1]
+        \Function{MillerRabin}{n, k}
+        \State Write $n-1 = 2^{r} \cdot d$ with d odd
+        \For{$i = 1$ to $k$}
+        \State Choose random $a \in [2, n-2]$
+        \State $x \gets a^{d} \mod n$
+        \If{$x = 1$ or $x = n-1$}
+        \State \textbf{continue}
+        \EndIf
+        \For{$j = 1$ to $r-1$}
+        \State $x \gets x^{2} \mod n$
+        \If{$x = n-1$}
+        \State \textbf{continue outer loop}
+        \EndIf
+        \EndFor
+        \State \Return composite
+        \EndFor
+        \State \Return probably prime
+        \EndFunction
+    \end{algorithmic}
+\end{algorithm}
+
+\begin{minted}{c}
+int mpz_probab_prime_p(const mpz_t n, int reps);
+\end{minted}
+
+\textbf{Складність:} $O(k \cdot \log^{3} n)$, де $k$ -- кількість раундів
+
+\textbf{Вхід:} n (число для перевірки), reps (кількість раундів у схемі Міллера-Рабіна)
+
+\textbf{Вихід:} Цілочисельний результат
+
+\textbf{Return Code:}
+\begin{itemize}
+    \item 2: однозначно просте
+    \item 1: ймовірно просте
+    \item 0: однозначно складене
+\end{itemize}
+
+\subsection{Бітові та логічні операції}
+
+\subsubsection{mpz\_and, mpz\_ior, mpz\_xor}
+\textbf{Опис:} Bitwise AND, OR, XOR operations
+
+\textbf{Алгоритм:} Limb-by-limb побітові операції з обробкою знаків
+
+\begin{minted}{c}
+void mpz_and(mpz_t rop, const mpz_t op1, const mpz_t op2);
+void mpz_ior(mpz_t rop, const mpz_t op1, const mpz_t op2);
+void mpz_xor(mpz_t rop, const mpz_t op1, const mpz_t op2);
+\end{minted}
+
+\textbf{Складність:} $O(n)$, де $n = \max(\text{size}(op1), \text{size}(op2))$
+
+\textbf{Вхід:} rop (result), op1, op2
+
+\textbf{Вихід:} rop місить результат побітової інформації
+
+\textbf{Return Code:} void (no return value)
+
+\subsubsection{mpz\_popcount}
+\textbf{Опис:} Підраховує кількість одиничних бітів в двійковому представлені (Hamming weight)
+
+\textbf{Алгоритм:} Використовує специфічну для процесора інструкцію POPCNT або таблицю перегляду
+
+\begin{minted}{c}
+mp_bitcnt_t mpz_popcount(const mpz_t op);
+\end{minted}
+
+\textbf{Складність:} $O(n)$, де $n$ -- кількість of limbs
+
+\textbf{Вхід:} op (ціле число)
+
+\textbf{Вихід:} Кількість of 1-bits
+
+\textbf{Return Code:} mp\_bitcnt\_t (unsigned long)
+
+\subsection{Функції порівняння}
+
+\subsubsection{mpz\_cmp}
+\textbf{Опис:} Порівнює два цілих числа
+
+\textbf{Алгоритм:} Спочатку порівнює знаки, потім порівнює limbs(розряди), починаючи з найстаршого
+
+\begin{minted}{c}
+int mpz_cmp(const mpz_t op1, const mpz_t op2);
+\end{minted}
+
+\textbf{Складність:} $O(n)$ -- у найгіршому випадку, але часто $O(1)$, якщо ромір або ранні limbs відрізняються
+
+\textbf{Вхід:} op1, op2
+
+\textbf{Вихід:} Цілочисельне значеня
+
+\textbf{Return Code:}
+\begin{itemize}
+    \item Позитивне значення, якщо op1 $>$ op2
+    \item 0, якщо op1 $=$ op2
+    \item Негативне значення, якщо op1 $<$ op2
+\end{itemize}
+
+\newpage
+\section{Summary по оцінках складності}
+
+\begin{table}[ht]
+    \centering
+    \begin{tabular}{|l|l|l|}
+        \hline
+        \textbf{Operation}  & \textbf{Function}     & \textbf{Time Complexity}                    \\
+        \hline
+        Addition            & mpz\_add              & $O(n)$                                      \\
+        Subtraction         & mpz\_sub              & $O(n)$                                      \\
+        Multiplication      & mpz\_mul              & $O(n^{1.465})$ to $O(n \log n \log \log n)$ \\
+        Division            & mpz\_tdiv\_q          & $O(n \cdot m)$ to $O(M(n))$                 \\
+        Modulo              & mpz\_mod              & $O(n \cdot m)$                              \\
+        Mod. Exponentiation & mpz\_powm             & $O(k \cdot M(n))$                           \\
+        Mod. Inverse        & mpz\_invert           & $O(n^{2})$                                  \\
+        GCD                 & mpz\_gcd              & $O(n^{2})$                                  \\
+        Primality Test      & mpz\_probab\_prime\_p & $O(k \cdot \log^{3} n)$                     \\
+        Bitwise Operations  & mpz\_and/ior/xor      & $O(n)$                                      \\
+        Comparison          & mpz\_cmp              & $O(1)$ to $O(n)$                            \\
+        \hline
+    \end{tabular}
+    \caption{Часова складність операцій GMP}
+\end{table}
+
+Де:
+\begin{itemize}
+    \item $n$ = кількість of limbs (64-bit слів) в операндах
+    \item $m$ = кількість of limbs у другому операнді (для асиметричних операцій)
+    \item $k$ = кількість бітів в експоненті або кількості тестових раундів
+    \item $M(n)$ = складність множення (варіюється залежно від алгоритму)
+\end{itemize}
+
+\subsection{Space Complexity}
+Більшість операцій GMP мають space complexity of $O(n)$, де $n$ -- розмір результату. Множення та ділення
+можуть вимагати тимчасового зберігання додаткових limbs $O(n)$.
+
+\subsection{Роздуми про паралельні обчислення}
+
+\subsubsection{Task-Level Parallelism}
+Для серверів обробки транзакцій, що обробляють кілька незалежних криптографічних операцій:
+\begin{itemize}
+    \item Незалежні операції GMP можуть виконуватися одночасно на різних ядрах
+    \item Кожен потік повинен підтримувати власні змінні mpz\_t, щоб уникнути конфліктів
+    \item Memory allocation patterns мають бути оптимізовані для NUMA architectures
+\end{itemize}
+
+\subsubsection{Продуктивність на 64-бітній архітектурі}
+GMP є високооптимізованим для 64-бітних систем:
+\begin{itemize}
+    \item Розмір Native limb відповідає ширині регістра (64 біти)
+    \item Оптимізовані під асемблер процедури для x86-64, ARM64 тощо
+    \item Ефективне використання інструкцій SIMD, де це можливо
+\end{itemize}
+
+\subsubsection{Управління пам'яттю з 128 GB RAM}
+Для великорозмірних операцій:
+\begin{itemize}
+    \item GMP може обробляти цілі числа з мільйонами бітів
+    \item Розподіл пам'яті стає значним для дуже великих чисел
+    \item Custom allocators можуть покращити продуктивність у сценаріях, що вимагають великого обсягу пам'яті
+\end{itemize}
+
+\newpage
+\section{Специфікація вхідних і вихідних даних}
+
+\subsection{Тип данних: mpz\_t}
+Основним типом даних, що використовується в цілочисельних операціях GMP, є \texttt{mpz\_t}, який визначено так:
+
+\begin{minted}{c}
+typedef struct {
+    int _mp_alloc;  // Number of limbs allocated
+    int _mp_size;   // Number of limbs used (sign in sign bit)
+    mp_limb_t *_mp_d;  // Pointer to limb array
+} __mpz_struct;
+
+typedef __mpz_struct mpz_t[1];
+\end{minted}
+
+\subsection{Limbs представлення}
+На 64-бітних архітектурах \texttt{mp\_limb\_t} виглядає так:
+\begin{minted}{c}
+typedef unsigned long mp_limb_t;  // 64 bits
+\end{minted}
+
+\subsection{Вимоги до Input даних}
+
+\subsubsection{Вимоги до ініціалізації}
+Всі змінні типу \texttt{mpz\_t} повинні бути ініціалізовані перед використанням:
+\begin{minted}{c}
+mpz_t x;
+mpz_init(x);  // Must be called before any operations
+\end{minted}
+
+\subsubsection{Формати введення}
+GMP підтримує кілька форматів введення:
+\begin{itemize}
+    \item Пряме присвоювання з типів з C++: \texttt{mpz\_set\_ui}, \texttt{mpz\_set\_si}
+    \item String conversion: \texttt{mpz\_set\_str} (підтримує системи числення з основами 2-62)
+    \item Імпорт з binary data: \texttt{mpz\_import}
+\end{itemize}
+
+Приклад:
+\begin{minted}{c}
+mpz_t n;
+mpz_init(n);
+mpz_set_str(n, "123456789012345678901234567890", 10);
+\end{minted}
+
+\subsection{Формати виведення}
+
+\subsubsection{Конвертація в стандартні дла C++ типи}
+\begin{minted}{c}
+unsigned long mpz_get_ui(const mpz_t op);
+long mpz_get_si(const mpz_t op);
+double mpz_get_d(const mpz_t op);
+\end{minted}
+
+\subsubsection{String Output}
+\begin{minted}{c}
+char* mpz_get_str(char *str, int base, const mpz_t op);
+\end{minted}
+
+\subsubsection{Binary Export}
+\begin{minted}{c}
+void mpz_export(void *rop, size_t *countp, int order, 
+                size_t size, int endian, size_t nails, 
+                const mpz_t op);
+\end{minted}
+
+\subsection{Управління пам'яттю}
+
+\subsubsection{Очищення}
+Усі ініціалізовані змінні \texttt{mpz\_t} необхідно очистити, щоб звільнити пам'ять:
+\begin{minted}{c}
+mpz_clear(x);
+\end{minted}
+
+\subsubsection{Оцінка використання пам'яті}
+Для цілого числа з $b$ бітами:
+\begin{itemize}
+    \item Кількість of limbs: $n = \lceil b / 64 \rceil$
+    \item Memory usage: $\approx 8n + 16$ байт (у 64-бітних системах)
+\end{itemize}
+
+\newpage
+\section{Return Codes та обробка помилок}
+
+\subsection{Категорії of Return Codes}
+
+\subsubsection{Void Functions (No Return)}
+Більшість арифметичних функцій GMP повертають \texttt{void}:
+\begin{minted}{c}
+void mpz_add(mpz_t rop, const mpz_t op1, const mpz_t op2);
+void mpz_mul(mpz_t rop, const mpz_t op1, const mpz_t op2);
+\end{minted}
+
+Ці функції завжди виконуються успішно (за умови правильної ініціалізації та наявності достатнього обсягу пам'яті).
+
+\subsubsection{Integer Return Values}
+
+\paragraph{mpz\_invert}
+\begin{minted}{c}
+int mpz_invert(mpz_t rop, const mpz_t op, const mpz_t mod);
+\end{minted}
+\textbf{Return:}
+\begin{itemize}
+    \item Не нуль (істина) (true), якщо оберенене існує
+    \item 0 (false), якщо обернене не існує (gcd(op, mod) $\neq$ 1)
+\end{itemize}
+
+\paragraph{mpz\_probab\_prime\_p}
+\begin{minted}{c}
+int mpz_probab_prime_p(const mpz_t n, int reps);
+\end{minted}
+\textbf{Return:}
+\begin{itemize}
+    \item 2, якщо $n$ точно просте число
+    \item 1, якщо $n$ можливо просте число (велика ймовірність)
+    \item 0, якщо $n$ однозначно складене число
+\end{itemize}
+
+\paragraph{mpz\_cmp (and variants)}
+\begin{minted}{c}
+int mpz_cmp(const mpz_t op1, const mpz_t op2);
+\end{minted}
+\textbf{Return:}
+\begin{itemize}
+    \item Позитивне значеня, якщо op1 $>$ op2
+    \item 0, якщо op1 $=$ op2
+    \item Негативне значення, якщо op1 $<$ op2
+\end{itemize}
+
+\paragraph{mpz\_sgn}
+\begin{minted}{c}
+int mpz_sgn(const mpz_t op);
+\end{minted}
+\textbf{Return:}
+\begin{itemize}
+    \item $+1$, якщо op $> 0$
+    \item 0, якшо op $= 0$
+    \item $-1$, якшо op $< 0$
+\end{itemize}
+
+\subsubsection{Size and Count Returns}
+
+\paragraph{mpz\_sizeinbase}
+\begin{minted}{c}
+size_t mpz_sizeinbase(const mpz_t op, int base);
+\end{minted}
+\textbf{Return:} Кількість цифр у заданій системі числення (приблизна кількість, якщо не є степенем числа 2)
+
+\paragraph{mpz\_popcount}
+\begin{minted}{c}
+mp_bitcnt_t mpz_popcount(const mpz_t op);
+\end{minted}
+\textbf{Return:} Кількість 1-біт у двійковому представленні
+
+\subsection{Обробка помилок}
+
+\subsubsection{Memory Allocation Failures}
+GMP використовує настроюваний механізм розподілу пам'яті. За замовчуванням використовується \texttt{malloc/realloc/free}. 
+Якщо розподіл пам'яті не вдається:
+\begin{itemize}
+    \item GMP викликає функцію обробки помилок
+    \item Стандартна поведінка: виводить повідомлення про помилку і викликає \texttt{abort()}
+    \item Custom handlers можна встановити за допомогою \texttt{mp\_set\_memory\_functions}
+\end{itemize}
+
+\subsubsection{Ділення на нуль}
+Операції, такі як \texttt{mpz\_div}, \texttt{mpz\_mod}, and \texttt{mpz\_invert} із нульовим дільником:
+\begin{itemize}
+    \item Поведінка GMP: викликає обробник помилок (зазвичай перериває роботу)
+    \item Рекомендація: перевіряйте дільники перед операціями в робочому коді
+\end{itemize}
+
+\subsubsection{Недійсні аргументи функції}
+GMP припускає, що:
+\begin{itemize}
+    \item Всі змінні \texttt{mpz\_t} правильно ініціалізовані
+    \item Виконані попередні умови функції (наприклад, додатний модуль \texttt{mpz\_mod})
+    \item Порушення умов призводить до невизначеної поведінки
+\end{itemize}
+
+\newpage
+\subsection{Return Code Summary Table}
+
+\begin{table}[ht]
+    \centering
+    \begin{tabular}{|l|l|l|}
+        \hline
+        \textbf{Function}            & \textbf{Return Type} & \textbf{Return Values}                 \\
+        \hline
+        mpz\_add, mpz\_sub, mpz\_mul & void                 & N/A                                    \\
+        mpz\_div, mpz\_mod           & void                 & N/A                                    \\
+        mpz\_invert                  & int                  & 0 (no inverse) or non-zero (success)   \\
+        mpz\_probab\_prime\_p        & int                  & 0 (composite), 1 (probable), 2 (prime) \\
+        mpz\_cmp                     & int                  & $<0$, $=0$, $>0$                       \\
+        mpz\_sgn                     & int                  & $-1$, $0$, $+1$                        \\
+        mpz\_sizeinbase              & size\_t              & Number of digits                       \\
+        mpz\_popcount                & mp\_bitcnt\_t        & Number of 1-bits                       \\
+        mpz\_get\_ui                 & unsigned long        & Integer value                          \\
+        mpz\_get\_si                 & long                 & Integer value                          \\
+        mpz\_get\_str                & char*                & Pointer to string                      \\
+        \hline
+    \end{tabular}
+    \caption{Типи повернення функцій GMP}
+\end{table}
+
+\subsection{Розгляд безпеки потоків}
+\begin{itemize}
+    \item Функції GMP, як правило, є безпечними для потоків при роботі з окремими змінними \texttt{mpz\_t}
+    \item Відсутність внутрішнього глобального стану (крім користувацьких розподільників пам'яті)
+    \item Кожен потік повинен підтримувати власний набір змінних
+    \item Синхронізація потрібна тільки при спільному використанні змінних \texttt{mpz\_t} між потоками
+\end{itemize}
+
+\newpage
+\section{Аналіз продуктивності для паралельних обчислювальних середовищ}
+
+\subsection{Міркування стосовно архітектури апаратного забезпечення}
+
+\subsubsection{Переваги 64-bit Architecture}
+\begin{itemize}
+    \item Native 64-bit limb операції без програмної емуляції
+    \item Повне використання 64-бітних регістрів (RAX, RBX тощо)
+    \item Ефективні multiply-with-carry інструкції (MUL, IMUL, ADC)
+    \item Великий адресний простір для обробки великих цілих чисел
+\end{itemize}
+
+\subsubsection{Використання багатоядерних процесорів}
+Для серверів обробки транзакцій:
+
+\textbf{Scenario 1: Незалежні криптографічні операції}
+\begin{minted}{c}
+// Thread function for parallel RSA signature verification
+void* verify_signature(void* arg) {
+    signature_data* data = (signature_data*)arg;
+    mpz_t signature, message, n, e, result;
+    
+    mpz_init(signature);
+    mpz_init(message);
+    mpz_init(n);
+    mpz_init(e);
+    mpz_init(result);
+    
+    // Load signature and public key
+    mpz_import(signature, data->sig_len, 1, 1, 0, 0, data->sig);
+    mpz_set(n, data->modulus);
+    mpz_set(e, data->exponent);
+    
+    // Verify: result = signature^{e} mod n
+    mpz_powm(result, signature, e, n);
+    
+    // Compare with message hash
+    int valid = (mpz_cmp(result, data->hash) == 0);
+    
+    mpz_clear(signature);
+    mpz_clear(message);
+    mpz_clear(n);
+    mpz_clear(e);
+    mpz_clear(result);
+    
+    return (void*)(long)valid;
+}
+\end{minted}
+
+\textbf{Масштабованість:} Майже лінійна залежно від кількості ядер для незалежних операцій
+
+\subsubsection{Оптимізація архітектури NUMA}
+Для систем з 128 GB RAM оперативної пам'яті, розподіленої між NUMA nodes:
+\begin{itemize}
+    \item Allocate локальні для потоку змінні mpz\_t на локальних NUMA nodes
+    \item Використовувати \texttt{numa\_alloc\_local()} для власного розподільника GMP
+    \item Мінімізуйте міжвузловий доступ до пам'яті
+    \item Pin threads до конкретних ядер/вузлів для стабільнішої продуктивності
+\end{itemize}
+
+\subsection{Оптимізація кешу}
+
+\subsubsection{L1/L2/L3 Cache Behavior}
+\begin{itemize}
+    \item Small integers ($<$ 1024 bits): зазвичай вміщуються в кеш L1/L2
+    \item Medium integers (1024-8192 bits): підходять для кешу L3
+    \item Large integers ($>$ 8192 bits): домінують за пропускною здатністю пам'яті
+\end{itemize}
+
+\subsubsection{Cache-Friendly Patterns}
+\begin{minted}{c}
+// Good: Process batch of operations with same modulus
+mpz_t mod, base[1000], result[1000];
+mpz_init(mod);
+mpz_set_str(mod, "large_prime_modulus", 10);
+
+for (int i = 0; i < 1000; i++) {
+    mpz_init(base[i]);
+    mpz_init(result[i]);
+    // Set base[i] values
+}
+
+// Modulus stays hot in cache
+for (int i = 0; i < 1000; i++) {
+    mpz_powm_ui(result[i], base[i], 65537, mod);
+}
+\end{minted}
+
+\subsection{Огляд пропускної здатності пам'яті}
+
+Для дуже великих цілих чисел (мільйони бітів) продуктивність залежить від пам'яті:
+
+\begin{table}[ht]
+    \centering
+    \begin{tabular}{|l|l|l|}
+        \hline
+        \textbf{Integer Size} & \textbf{Operation}     & \textbf{Approx. Time} \\
+        \hline
+        1024 bits             & Multiplication         & $\sim$1 $\mu$s        \\
+        2048 bits             & Multiplication         & $\sim$3 $\mu$s        \\
+        4096 bits             & Multiplication         & $\sim$10 $\mu$s       \\
+        1024 bits             & Modular Exponentiation & $\sim$500 $\mu$s      \\
+        2048 bits             & Modular Exponentiation & $\sim$3 ms            \\
+        4096 bits             & Modular Exponentiation & $\sim$20 ms           \\
+        \hline
+    \end{tabular}
+    \caption{Приблизна продуктивність на сучасному 64-бітному сервері}
+\end{table}
+
+\subsection{Практичні рекомендації по впровадженню даної бібліотеки}
+
+\subsubsection{Thread Pool Architecture}
+\begin{minted}{c}
+typedef struct {
+    mpz_t* work_items;
+    int count;
+    mpz_t modulus;
+} thread_task;
+
+void* worker_thread(void* arg) {
+    thread_task* task = (thread_task*)arg;
+    
+    // Thread-local temporary variables
+    mpz_t temp;
+    mpz_init(temp);
+    
+    for (int i = 0; i < task->count; i++) {
+        // Process each work item
+        mpz_powm_ui(task->work_items[i], 
+                    task->work_items[i], 
+                    65537, 
+                    task->modulus);
+    }
+    
+    mpz_clear(temp);
+    return NULL;
+}
+\end{minted}
+
+\subsubsection{Memory Pre-allocation Strategy}
+\begin{minted}{c}
+// Pre-allocate to avoid reallocation during computation
+mpz_t large_number;
+mpz_init2(large_number, 8192);  // Reserve space for 8192 bits
+\end{minted}
+
+\subsection{Рекомендації щодо тестування (Benchmark Recommendations)}
+
+Для оцінки продуктивності GMP у конкретному середовищі необхідно:
+
+\begin{enumerate}
+    \item \textbf{Single-threaded baseline:} Виміряти час роботи ядра
+    \item \textbf{Multi-threaded scaling:} Тестування на 1, 2, 4, 8, 16+ потоках
+    \item \textbf{Memory pressure:} Тестування з різними розмірами цілих чисел
+    \item \textbf{NUMA effects:} Порівняння локального та віддаленого доступу до пам'яті
+    \item \textbf{Cache behavior:} Вимірювання продуктивності з "гарячими"{} та "холодними"{} даними
+\end{enumerate}
+
+\newpage
+\section{Висновок}
+
+\subsection{Підсумок результатів дослідження}
+В моєму міні-дослідженні проведено комплексний аналіз функцій бібліотеки GNU GMP для арифметики з багатократною 
+точністю в паралельних обчислювальних середовищах. Основні висновки такі:
+\begin{itemize}
+    \item GMP надає асимптотично оптимальні алгоритми для всіх основних арифметичних операцій
+    \item Складність варіюється від $O(n)$ для додавання, до $O(n \log n \log \log n)$ для множення на основі швидкого перетворення Фур'є
+    \item Бібліотека є високооптимізованою для 64-бітних архітектур з асемблерними реалізаціями
+    \item Task-level parallelism забезпечує майже лінійне масштабування для незалежних операцій
+    \item Управління пам'яттю має вирішальне значення для продуктивності у великомасштабних проєктах
+\end{itemize}
+
+\subsection{Придатність для обробки транзакцій}
+Для серверів обробки транзакцій та постачальників хмарних послуг:
+
+\textbf{Переваги:}
+\begin{itemize}
+    \item Зріла, добре перевірена бібліотека з десятиліттями оптимізації
+    \item Відмінна однопотокова продуктивність
+    \item Проста паралелізація незалежних операцій
+    \item Ефективне використання пам'яті для типових криптографічних операцій
+\end{itemize}
+
+\textbf{Недоліки:}
+\begin{itemize}
+    \item Відсутність вбудованого паралелізму на рівні функцій (наприклад, паралельне множення)
+    \item Накладні витрати на розподіл пам'яті для дуже частих невеликих операцій
+    \item Для підтримки NUMA потрібен спеціальний розподільник пам'яті
+\end{itemize}
+
+\subsection{Рекомендації щодо оптимізації}
+
+\subsubsection{Для сценаріїв з високою пропускною здатністю}
+\begin{enumerate}
+    \item Використовувати пули потоків із попередньо ініціалізованими змінними mpz\_t
+    \item Пакетні операції зі спільними модулями для поліпшення використання кешу
+    \item Розгляньти можливість використання спеціальних розподільників пам'яті для систем NUMA
+    \item Профілювання шаблонів доступу до пам'яті для мінімізації міжвузлового трафіку
+\end{enumerate}
+
+\subsubsection{Для сценаріїв з низькою затримкою}
+\begin{enumerate}
+    \item Попередньо виділять змінні mpz\_t з очікуваним максимальним розміром
+    \item Зберігайти часто використовувані значення (наприклад, модулі, відкриті ключі) в кеші
+    \item Використовувати цілі числа фіксованого розміру, якщо відомі вимоги до точності
+    \item Уникайти динамічного розподілу пам'яті in critical paths
+\end{enumerate}
+
+\subsection{Загальні висновки}
+GNU GMP залишається золотим стандартом для арифметики з багатократною точністю в високопродуктивних обчислювальних 
+середовищах. Поєднання алгоритмічної досконалості, оптимізації під конкретну архітектуру та гнучкості робить його 
+ідеальним для серверів обробки транзакцій та хмарних служб, що вимагають криптографічних операцій з великими цілими 
+числами. За допомогою відповідних стратегій паралельних обчислень GMP може ефективно використовувати сучасні багатоядерні 
+64-бітні архітектури з великими обсягами пам'яті, забезпечуючи високу пропускну здатність і низьку затримку для вимогливих 
+додатків.
